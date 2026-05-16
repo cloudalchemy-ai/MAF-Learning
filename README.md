@@ -1,4 +1,4 @@
-# MAF-Learning
+# Microsoft Agent Framework (MAF): Build Enterprise AI Agents
 
 A hands-on course covering the **Microsoft Agent Framework (MAF)** — from the smallest "hello agent" sample up to real-world multi-agent systems with A2A, MCP, RAG, and human-in-the-loop tooling.
 
