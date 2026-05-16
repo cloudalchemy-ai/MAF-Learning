@@ -1,0 +1,9 @@
+google-adk==1.18.0
+a2a==0.44
+google-genai==1.51.0
+uvicorn==0.38.0
+python-dotenv==1.2.1
+agent-framework==1.0.0b251114
+agent-framework-a2a==1.0.0b251114
+agent-framework-azure-ai==1.0.0b251114
+agent-framework-core==1.0.0b251114
