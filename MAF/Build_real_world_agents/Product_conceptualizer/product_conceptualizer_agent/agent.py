@@ -43,7 +43,7 @@ Your responsibility is to transform an initial **specific product idea** into a 
 
 **Important Rules:**  
 - No generic placeholders: every field must be product-specific.
-- Final response must be a well-formed dictionary, never free text.
+- Final response must be in a clear, human-readable text format, not JSON or a dictionary. Add spaces wherever needed for better readability.
 - Do not ask any clarifying questions; work with the provided inputs only.  
 """,
         tools=[generate_product_concept_tool],
