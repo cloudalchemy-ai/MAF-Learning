@@ -14,7 +14,8 @@ MAF/
 ├── Model & Platform Agnostic/         # Same agent, different model providers
 ├── Building_basic_agents_with_real_tools/   # Tools, streaming, HITL, middleware
 ├── Orchestration_workflows/           # Sequential, Concurrent, Handoff patterns
-└── Build_real_world_agents/           # End-to-end applications
+├── Build_real_world_agents/           # End-to-end applications
+└── Observability/                     # Tracing, token usage, and latency with OpenTelemetry
 ```
 
 ---
@@ -67,7 +68,35 @@ Three canonical multi-agent orchestration patterns built with `WorkflowBuilder`.
 
 Each subfolder includes an architecture diagram and a `Readme.md` walking through the pattern.
 
-### 5. Build real-world agents — [MAF/Build_real_world_agents/](MAF/Build_real_world_agents/)
+### 5. Observability — [MAF/Observability/](MAF/Observability/)
+
+Instrument agents with [OpenTelemetry](https://opentelemetry.io/) to see exactly what they do at runtime: the span tree (agent → tool → LLM calls), token usage, model name, and end-to-end latency. MAF emits standard [GenAI semantic-convention](https://opentelemetry.io/docs/specs/semconv/gen-ai/) traces, so the same instrumentation works whether you export to a local console or to a hosted backend.
+
+Two export targets are demonstrated:
+
+| File | Backend | What it shows |
+|---|---|---|
+| [inc-triage-obs.py](MAF/Observability/inc-triage-obs.py) | **Local / console** — custom `SpanExporter` collects finished spans | Incident-triage agent calls `lookup_runbook`, then prints a span tree with per-span latency bars, aggregated token counts, and the model used — no cloud account required |
+| [stock-analyst-obs.py](MAF/Observability/stock-analyst-obs.py) | **Azure Monitor / Application Insights** | Stock-analyst agent exports traces to App Insights via `configure_azure_monitor`; prints a Trace ID and a ready-to-run Kusto query for Transaction search |
+
+The core pattern across all three:
+
+```python
+from agent_framework.observability import enable_instrumentation, get_tracer
+
+enable_instrumentation(enable_sensitive_data=True)   # turn on MAF's GenAI tracing
+
+with get_tracer().start_as_current_span("My Agent Chat", kind=SpanKind.CLIENT) as span:
+    trace_id = format_trace_id(span.get_span_context().trace_id)
+    # ... run the agent; every agent/tool/LLM call nests under this root span
+```
+
+- **Local first**: run `inc-triage-obs.py` to understand the span model with zero setup — it only needs `OPENAI_API_KEY` and the OpenTelemetry SDK.
+- **Then go cloud**: the Azure samples need an Azure AI Project with Application Insights enabled (set `PROJECT_ENDPOINT`) and a logged-in Azure CLI (`az login`) for `AzureCliCredential`.
+
+Architecture diagrams (`inc-triage-agent-flow.png`, `stock-analyst-agent-flow.png`) live alongside the code.
+
+### 6. Build real-world agents — [MAF/Build_real_world_agents/](MAF/Build_real_world_agents/)
 
 Full applications combining the concepts above.
 
@@ -115,7 +144,7 @@ python-dotenv
 openai
 ```
 
-Provider-specific modules additionally need `azure-identity`, `anthropic`, `playwright`, `a2a-sdk`, or `google-adk` depending on the example.
+Provider-specific modules additionally need `azure-identity`, `anthropic`, `playwright`, `a2a-sdk`, or `google-adk` depending on the example. The Observability module needs `opentelemetry-sdk` (local sample) and `azure-monitor-opentelemetry` + `azure-ai-projects` (Azure samples).
 
 ### 4. Configure secrets
 
@@ -139,7 +168,12 @@ ANTHROPIC_MODEL=claude-sonnet-4-5
 
 # Google (for the ADK remote agent example)
 GOOGLE_API_KEY=
+
+# Observability (Azure App Insights sample — stock-analyst-obs.py)
+PROJECT_ENDPOINT=          # Azure AI Project endpoint with Application Insights enabled
 ```
+
+> The local observability sample (`inc-triage-obs.py`) needs no Azure config — it sets `ENABLE_INSTRUMENTATION` / `ENABLE_SENSITIVE_DATA` in-process and exports spans to the console.
 
 `.env` is gitignored — never commit it.
 
@@ -157,7 +191,8 @@ python "MAF/MAF Concepts/sample-maf-tool-deco.py"
 2. **Model & Platform Agnostic** — swap providers without changing agent logic
 3. **Building basic agents with real tools** — add streaming, HITL, middleware
 4. **Orchestration workflows** — compose multiple agents
-5. **Build real-world agents** — A2A, MCP, and RAG in production-shaped projects
+5. **Observability** — trace, measure, and debug agents with OpenTelemetry (local first, then Azure App Insights)
+6. **Build real-world agents** — A2A, MCP, and RAG in production-shaped projects
 
 ---
 
