@@ -1,20 +1,20 @@
-"""
-Stock Analyst Agent with Azure Monitor Observability
-Microsoft Agent Framework 1.0+ | OpenAIChatClient
+# Stock Analyst Agent with Observability (Azure Monitor + Application Insights)
 
-.env:  OPENAI_API_KEY=sk-...   OPENAI_CHAT_MODEL=gpt-4o-mini
-       PROJECT_ENDPOINT=https://...
-"""
+# Imports and setup
 
 import asyncio
 import logging
 import os
 import sys
+import warnings
 from random import uniform, choice
 from typing import Annotated
 
 import dotenv
 from pydantic import Field
+
+# Silence agent_framework "experimental feature" warnings (MemoryStore, SkillResource, ...)
+warnings.filterwarnings("ignore", message=".*experimental.*")
 
 from agent_framework import Agent, tool
 from agent_framework.observability import (
@@ -39,7 +39,7 @@ dotenv.load_dotenv()
 logger = logging.getLogger(__name__)
 
 
-# ── Tool ──────────────────────────────────────────────────────────────
+# ── Tool Definition ───────────────────────────────────────────────────────────────
 
 @tool(approval_mode="never_require")
 async def get_stock_price(
@@ -66,7 +66,7 @@ async def get_stock_price(
     )
 
 
-# ── Main ──────────────────────────────────────────────────────────────
+# ── Connecting to Azure and fetching the connection string ──────────────────────────────────────────────────────────────
 
 async def main():
     async with (
@@ -81,11 +81,15 @@ async def main():
                 await project_client.telemetry
                 .get_application_insights_connection_string()
             )
-        except Exception:
-            logger.warning("No App Insights connection string found.")
+        except Exception as exc:
+            logger.warning(
+                "Could not fetch App Insights connection string: %s", exc
+            )
             return
 
         print(f"📡 App Insights: {conn_string[:50]}...")
+
+# Wiring up telemetry
 
         configure_azure_monitor(
             connection_string=conn_string,
@@ -100,6 +104,7 @@ async def main():
             "What's the price of NVDA?",
             "Compare AAPL and MSFT — which looks better?",
         ]
+# The root span 
 
         with get_tracer().start_as_current_span(
             "Stock Analyst Chat",
@@ -107,6 +112,8 @@ async def main():
         ) as span:
             trace_id = format_trace_id(span.get_span_context().trace_id)
             print(f"Trace ID: {trace_id}\n")
+
+# Creating and running the agent
 
             agent = Agent(
                 client=OpenAIChatClient(),
@@ -128,6 +135,8 @@ async def main():
                     if update.text:
                         print(update.text, end="", flush=True)
                 print("\n")
+
+# Flushing and the Kusto query
 
         provider = trace.get_tracer_provider()
         if hasattr(provider, "force_flush"):
